@@ -2442,6 +2442,8 @@
     "errorType": "message",
     "errorMsg": [
       "\"statusCode\":10221",
+      "\"status_msg\":\"Couldn't find this account\"",
+      "\"statusCode\":10222",
       "Govt. of India decided to block 59 apps"
     ],
     "username_claimed": "charlidamelio"
