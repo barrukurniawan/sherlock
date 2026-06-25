@@ -399,7 +399,7 @@ def sherlock(
             query_status = QueryStatus.WAF
 
         else:
-            if any(errtype not in ["message", "status_code", "response_url"] for errtype in error_type):
+            if any(errtype not in ["message", "message_claimed", "status_code", "response_url"] for errtype in error_type):
                 error_context = f"Unknown error type '{error_type}' for {social_network}"
                 query_status = QueryStatus.UNKNOWN
             else:
@@ -425,6 +425,24 @@ def sherlock(
                                 error_flag = False
                                 break
                     if error_flag:
+                        query_status = QueryStatus.CLAIMED
+                    else:
+                        query_status = QueryStatus.AVAILABLE
+
+                if "message_claimed" in error_type and query_status is not QueryStatus.AVAILABLE:
+                    # Inverse of message: if claimedMsg is found in response, account is CLAIMED
+                    # if not found, account is AVAILABLE
+                    claimed_flag = False
+                    claimed_msgs = net_info.get("claimedMsg")
+                    if isinstance(claimed_msgs, str):
+                        if claimed_msgs in r.text:
+                            claimed_flag = True
+                    elif isinstance(claimed_msgs, list):
+                        for msg in claimed_msgs:
+                            if msg in r.text:
+                                claimed_flag = True
+                                break
+                    if claimed_flag:
                         query_status = QueryStatus.CLAIMED
                     else:
                         query_status = QueryStatus.AVAILABLE
@@ -739,7 +757,7 @@ def main():
     try:
         if args.local:
             sites = SitesInformation(
-                os.path.join(os.path.dirname(__file__), "resources/data.json"),
+                os.path.join(os.path.dirname(os.path.abspath(__file__)), "resources", "data.json"),
                 honor_exclusions=False,
             )
         else:
