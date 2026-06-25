@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sherlock Web Search</title>
+    <!-- Google Fonts for modern typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='keponew.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+    <div class="container" id="mainContainer">
+        <div class="logo-container">
+            <img src="{{ url_for('static', filename='keponew.png') }}" class="main-logo" alt="KEPOIN by jagoinstitute">
+        </div>
+
+        <div class="search-wrapper">
+            <svg class="search-icon" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                <path fill="currentColor"
+                    d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z">
+                </path>
+            </svg>
+            <input type="text" class="search-box" id="searchInput" placeholder="Search username across 400+ networks"
+                autocomplete="off" autofocus>
+            <div class="loading-spinner" id="loadingSpinner"></div>
+        </div>
+    </div>
+
+    <div class="results-container" id="resultsContainer">
+        <div class="status-message" id="statusMessage"></div>
+        <div id="priorityResultsList"></div>
+        <div id="normalResultsList"></div>
+    </div>
+
+    <script>
+        const searchInput = document.getElementById('searchInput');
+        const mainContainer = document.getElementById('mainContainer');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const priorityResultsList = document.getElementById('priorityResultsList');
+        const normalResultsList = document.getElementById('normalResultsList');
+        const statusMessage = document.getElementById('statusMessage');
+
+        const prioritySites = [
+            'tiktok', 'telegram', 'instagram', 'twitter', 'facebook', 'youtube',
+            'github', 'linkedin', 'x', 'reddit', 'pinterest', 'snapchat', 'discord', 'spotify'
+        ];
+
+        let eventSource = null;
+
+        searchInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter' && searchInput.value.trim() !== '') {
+                startSearch(searchInput.value.trim());
+            }
+        });
+
+        function startSearch(username) {
+            // UI state updates
+            mainContainer.classList.add('active');
+            resultsContainer.classList.add('active');
+            loadingSpinner.style.display = 'block';
+
+            // Clear previous results
+            priorityResultsList.innerHTML = '';
+            normalResultsList.innerHTML = '';
+            statusMessage.textContent = `Searching for: ${username}...`;
+
+            // Close existing connection if any
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            // Start SSE connection
+            eventSource = new EventSource(`/search?username=${encodeURIComponent(username)}`);
+
+            eventSource.onmessage = function (event) {
+                const data = JSON.parse(event.data);
+
+                if (data.status === 'found') {
+                    addResultItem(data.site, data.url);
+                } else if (data.status === 'info') {
+                    statusMessage.textContent = data.message;
+                } else if (data.status === 'done') {
+                    loadingSpinner.style.display = 'none';
+                    statusMessage.textContent = `Search completed for: ${username}`;
+                    eventSource.close();
+                } else if (data.status === 'error') {
+                    loadingSpinner.style.display = 'none';
+                    statusMessage.textContent = `Error: ${data.message}`;
+                    statusMessage.style.color = '#EA4335';
+                    eventSource.close();
+                }
+            };
+
+            eventSource.onerror = function () {
+                loadingSpinner.style.display = 'none';
+                statusMessage.textContent = 'Connection lost or search interrupted.';
+                eventSource.close();
+            };
+        }
+
+        function addResultItem(site, url) {
+            // Google-like result item
+            const div = document.createElement('div');
+            div.className = 'result-item';
+
+            const link = document.createElement('a');
+            link.href = url;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+
+            const cite = document.createElement('div');
+            cite.className = 'result-cite';
+            cite.textContent = site;
+
+            const title = document.createElement('h3');
+            title.textContent = `${site} - Profile`;
+
+            const urlText = document.createElement('div');
+            urlText.className = 'result-url';
+            urlText.textContent = url;
+
+            link.appendChild(cite);
+            link.appendChild(title);
+            link.appendChild(urlText);
+            div.appendChild(link);
+
+            if (prioritySites.includes(site.toLowerCase())) {
+                // Highlight priority items slightly
+                div.style.borderLeft = '3px solid #1a73e8';
+                div.style.paddingLeft = '15px';
+                priorityResultsList.appendChild(div);
+            } else {
+                normalResultsList.appendChild(div);
+            }
+        }
+    </script>
+</body>
+
+</html>
